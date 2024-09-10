@@ -1,0 +1,132 @@
+{
+  "SOURCE_BUCKET": "my-bucket-raw-ecom",
+  "DEST_BUCKET": "my-bucket-staging-ecom",
+  "CONFIG": {
+    "SOURCES": {
+      "ecommerce": {
+        "files": {
+          "olist_sellers_dataset": {
+            "filename_phrase": "sellers",
+            "type": ".txt",
+            "skiprows": 1,
+            "header": 0,
+            "sep": ",",
+            "encoding": "utf-8",
+            "quoting": 0,
+            "converters": "{\"EAN\": \"str\", \"UPC\": \"str\"}",
+            "snowflake_raw": 1,
+            "snowflake_meta": 1,
+            "snowflake_staging": 1,
+            "snowflake_reporting": 1
+          },
+          "olist_products_dataset": {
+            "filename_phrase": "products",
+            "type": ".csv",
+            "skiprows": 1,
+            "header": 0,
+            "sep": ",",
+            "encoding": "utf-8",
+            "quoting": 0,
+            "snowflake_raw": 1,
+            "snowflake_meta": 1,
+            "snowflake_staging": 1,
+            "snowflake_reporting": 1
+          },
+          "olist_order_dataset": {
+            "filename_phrase": "orders",
+            "type": ".csv",
+            "skiprows": 1,
+            "header": 0,
+            "sep": ",",
+            "encoding": "utf-8",
+            "quoting": 0,
+            "snowflake_raw": 1,
+            "snowflake_meta": 1,
+            "snowflake_staging": 1,
+            "snowflake_reporting": 1
+          },
+          "olist_order_reviews_dataset": {
+            "filename_phrase": "order_reviews",
+            "type": ".csv",
+            "skiprows": 1,
+            "header": 0,
+            "sep": ",",
+            "encoding": "utf-8",
+            "quoting": 0,
+            "snowflake_raw": 1,
+            "snowflake_meta": 1,
+            "snowflake_staging": 1,
+            "snowflake_reporting": 1
+          },
+          "olist_order_payments_dataset": {
+            "filename_phrase": "order_payments",
+            "type": ".csv",
+            "skiprows": 1,
+            "header": 0,
+            "sep": ",",
+            "encoding": "utf-8",
+            "quoting": 0,
+            "snowflake_raw": 1,
+            "snowflake_meta": 1,
+            "snowflake_staging": 1,
+            "snowflake_reporting": 1
+          },
+          "olist_order_items_dataset": {
+            "filename_phrase": "order_items",
+            "type": ".csv",
+            "skiprows": 1,
+            "header": 0,
+            "sep": ",",
+            "encoding": "utf-8",
+            "quoting": 0,
+            "snowflake_raw": 1,
+            "snowflake_meta": 1,
+            "snowflake_staging": 1,
+            "snowflake_reporting": 1
+          },
+          "olist_geolocation_dataset": {
+            "filename_phrase": "geolocation",
+            "type": ".csv",
+            "skiprows": 1,
+            "header": 0,
+            "sep": ",",
+            "encoding": "utf-8",
+            "quoting": 0,
+            "snowflake_raw": 1,
+            "snowflake_meta": 1,
+            "snowflake_staging": 1,
+            "snowflake_reporting": 1
+          },
+          "olist_customers_dataset": {
+            "filename_phrase": "customers",
+            "type": ".csv",
+            "skiprows": 1,
+            "header": 0,
+            "sep": ",",
+            "encoding": "utf-8",
+            "quoting": 0,
+            "snowflake_raw": 1,
+            "snowflake_meta": 1,
+            "snowflake_staging": 1,
+            "snowflake_reporting": 1
+          },
+          "product_category_name_translation": {
+            "filename_phrase": "category_name_translation",
+            "type": ".csv",
+            "skiprows": 1,
+            "header": 0,
+            "sep": ",",
+            "encoding": "utf-8",
+            "quoting": 0,
+            "snowflake_raw": 1,
+            "snowflake_meta": 1,
+            "snowflake_staging": 1,
+            "snowflake_reporting": 1
+          }
+        },
+        "file_via_email": 1,
+        "file_via_sftp": 0
+      }
+    }
+  }
+}

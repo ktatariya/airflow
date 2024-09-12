@@ -6,7 +6,7 @@ from airflow.operators.python import PythonOperator
 import ecommerce.tasks.python.copy_files as py0
 import ecommerce.tasks.python.s3_to_snowflake as py1
 import ecommerce.tasks.python.meta_s3_to_snowflake as py2
-import ecommerce.tasks.python.raw_to_staging as py3
+import ecommerce.tasks.python.snowflake_raw_to_staging as py3
 
 # Retrieve configuration
 config = Variable.get("CONFIG", deserialize_json=True)
@@ -113,8 +113,8 @@ for client, properties in sources.items():
             vendor_name >> end_task
         if file_properties.get('snowflake_staging', 0):
             task_d = PythonOperator(
-                task_id=f'{file_object}_raw_to_staging',
-                python_callable=py3.raw_to_staging_snowflake,
+                task_id=f'{file_object}_snowflake_raw_to_staging',
+                python_callable=py3.snowflake_raw_to_staging,
                 op_kwargs={
                     'vendor': client,
                     'S3_staging_folder_name': client,
@@ -122,7 +122,8 @@ for client, properties in sources.items():
                     'file_key': filename_phrase,
                     'bucket': dest_bucket,
                     'key': file_object,
-                    'load_id': load_id,  # Pass load_id
+                    'load_id': load_id,
+                    'file_id': file_object,  # Pass load_id
                 },
                 dag=dag,
             )

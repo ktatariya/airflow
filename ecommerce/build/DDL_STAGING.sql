@@ -2,8 +2,12 @@ CREATE OR REPLACE TABLE ecommerce.staging.olist_sellers_dataset (
     seller_id STRING,
     seller_zip_code_prefix INT,
     seller_city STRING,
-    seller_state STRING
+    seller_state STRING,
+    load_id STRING,
+    file_id STRING,
+    unique_key STRING
 );
+
 
 CREATE OR REPLACE TABLE ecommerce.staging.olist_products_dataset (
     product_id STRING,
@@ -14,7 +18,10 @@ CREATE OR REPLACE TABLE ecommerce.staging.olist_products_dataset (
     product_weight_g INT,
     product_length_cm INT,
     product_height_cm INT,
-    product_width_cm INT
+    product_width_cm INT,
+    load_id STRING,
+    file_id STRING,
+    unique_key STRING
 );
 
 CREATE OR REPLACE TABLE ecommerce.staging.olist_orders_dataset (
@@ -25,7 +32,10 @@ CREATE OR REPLACE TABLE ecommerce.staging.olist_orders_dataset (
     order_approved_at TIMESTAMP_NTZ,
     order_delivered_carrier_date TIMESTAMP_NTZ,
     order_delivered_customer_date TIMESTAMP_NTZ,
-    order_estimated_delivery_date DATE
+    order_estimated_delivery_date DATE,
+    load_id STRING,
+    file_id STRING,
+    unique_key STRING
 );
 
 CREATE OR REPLACE TABLE ecommerce.staging.olist_order_reviews_dataset (
@@ -35,7 +45,10 @@ CREATE OR REPLACE TABLE ecommerce.staging.olist_order_reviews_dataset (
     review_comment_title STRING,
     review_comment_message STRING,
     review_creation_date DATE,
-    review_answer_timestamp TIMESTAMP_NTZ
+    review_answer_timestamp TIMESTAMP_NTZ,
+    load_id STRING,
+    file_id STRING,
+    unique_key STRING
 );
 
 CREATE OR REPLACE TABLE ecommerce.staging.olist_order_payments_dataset (
@@ -43,7 +56,10 @@ CREATE OR REPLACE TABLE ecommerce.staging.olist_order_payments_dataset (
     payment_sequential INT,
     payment_type STRING,
     payment_installments INT,
-    payment_value FLOAT
+    payment_value FLOAT,
+    load_id STRING,
+    file_id STRING,
+    unique_key STRING
 );
 
 CREATE OR REPLACE TABLE ecommerce.staging.olist_order_items_dataset (
@@ -53,7 +69,10 @@ CREATE OR REPLACE TABLE ecommerce.staging.olist_order_items_dataset (
     seller_id STRING,
     shipping_limit_date TIMESTAMP_NTZ,
     price FLOAT,
-    freight_value FLOAT
+    freight_value FLOAT,
+    load_id STRING,
+    file_id STRING,
+    unique_key STRING
 );
 
 CREATE OR REPLACE TABLE ecommerce.staging.olist_geolocation_dataset (
@@ -61,7 +80,10 @@ CREATE OR REPLACE TABLE ecommerce.staging.olist_geolocation_dataset (
     geolocation_lat FLOAT,
     geolocation_lng FLOAT,
     geolocation_city STRING,
-    geolocation_state STRING
+    geolocation_state STRING,
+    load_id STRING,
+    file_id STRING,
+    unique_key STRING
 );
 
 CREATE OR REPLACE TABLE ecommerce.staging.olist_customers_dataset (
@@ -69,10 +91,16 @@ CREATE OR REPLACE TABLE ecommerce.staging.olist_customers_dataset (
     customer_unique_id STRING,
     customer_zip_code_prefix INT,
     customer_city STRING,
-    customer_state STRING
+    customer_state STRING,
+    load_id STRING,
+    file_id STRING,
+    unique_key STRING
 );
 
 CREATE OR REPLACE TABLE ecommerce.staging.product_category_name_translation (
     product_category_name STRING,
-    product_category_name_english STRING
+    product_category_name_english STRING,
+    load_id STRING,
+    file_id STRING,
+    unique_key STRING
 );

@@ -11,7 +11,7 @@ def snowflake_raw_to_staging(**kwargs):
         bucket = kwargs['bucket']
         key = kwargs['key']
         load_id = kwargs['load_id']
-        file_id = kwargs.get('file_id')  # Use .get() to avoid KeyError
+        file_id = kwargs['file_id']  # Use .get() to avoid KeyError
         if file_id is None:
             raise ValueError("file_id is required but not provided.")
         timestamp_utc = datetime.utcnow().strftime('%Y%m%d%H%M%S')

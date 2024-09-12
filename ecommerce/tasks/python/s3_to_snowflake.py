@@ -16,10 +16,8 @@ def copy_to_snowflake(**kwargs):
         key = kwargs['key']
         logging.info(f"S3 Staging Folder: {s3_staging_folder}, File Key: {file_key}, Bucket: {bucket}, Key: {key}")
 
-        # Generate dynamic load_id and file_id
-        load_id = str(uuid.uuid4())  # Unique identifier for each load
-        file_id = f"{file_key}_{datetime.now().strftime('%Y%m%d%H%M%S')}"  # File ID with timestamp
-        
+        file_id = kwargs['file_id']
+        load_id = kwargs['load_id']        
         logging.info(f"Generated load_id: {load_id}, file_id: {file_id}")
 
         config = Variable.get("CONFIG", deserialize_json=True)

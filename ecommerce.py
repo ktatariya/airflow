@@ -46,15 +46,33 @@ end_task = DummyOperator(
     dag=dag
 )
 
-# Generate load_id for the current run
-def generate_load_id():
-    return f"LOAD_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
-load_id = generate_load_id()
+# Task: Generate load_id (PythonOperator)
+def generate_load_id(**kwargs):
+    load_id = f"LOAD_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    kwargs['ti'].xcom_push(key='load_id', value=load_id)
+    print(f"Generated load_id: {load_id}")
+
+generate_load_id_task = PythonOperator(
+    task_id='generate_load_id',
+    python_callable=generate_load_id,
+    provide_context=True,
+    dag=dag,
+)
+
+# Function to fetch load_id from XCom
+def get_load_id(**kwargs):
+    ti = kwargs['ti']
+    load_id = ti.xcom_pull(task_ids='generate_load_id', key='load_id')
+    return load_id
+
+
+# Set up task dependencies
+start_task >> generate_load_id_task
 
 for client, properties in sources.items():
     vendor_name = DummyOperator(task_id=f'{client}', retries=3, dag=dag)
-    start_task >> vendor_name
+    generate_load_id_task >> vendor_name
     for file_object, file_properties in properties['files'].items():
         filename_phrase = file_properties['filename_phrase']
         source_prefix = f"ecommerce/{filename_phrase}/"
@@ -68,7 +86,7 @@ for client, properties in sources.items():
                 'dest_bucket': dest_bucket,
                 'source_prefix': source_prefix,
                 'dest_prefix': dest_prefix,
-                'load_id': load_id,
+                'load_id': '{{ task_instance.xcom_pull(task_ids="generate_load_id", key="load_id") }}',
             },
             dag=dag,
         )
@@ -84,7 +102,8 @@ for client, properties in sources.items():
                     'file_key': filename_phrase,
                     'bucket': dest_bucket,
                     'key': file_object,
-                    'load_id': load_id,  # Pass load_id
+                    'load_id': '{{ task_instance.xcom_pull(task_ids="generate_load_id", key="load_id") }}',  # Pass load_id
+                    'file_id': file_object,  # Pass file_id
                 },
                 dag=dag,
             ) 
@@ -103,7 +122,7 @@ for client, properties in sources.items():
                     'file_key': filename_phrase,
                     'bucket': dest_bucket,
                     'key': file_object,
-                    'load_id': load_id,  # Pass load_id
+                    'load_id': '{{ task_instance.xcom_pull(task_ids="generate_load_id", key="load_id") }}',  # Pass load_id
                     'file_id': file_object,  # Pass file_id
                 },
                 dag=dag,
@@ -122,7 +141,7 @@ for client, properties in sources.items():
                     'file_key': filename_phrase,
                     'bucket': dest_bucket,
                     'key': file_object,
-                    'load_id': load_id,
+                    'load_id': '{{ task_instance.xcom_pull(task_ids="generate_load_id", key="load_id") }}',
                     'file_id': file_object,  # Pass load_id
                 },
                 dag=dag,

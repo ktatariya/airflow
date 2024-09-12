@@ -1,42 +1,38 @@
 import os
 import logging
-import json
-import uuid
+import pandas as pd
 from datetime import datetime
-from airflow.exceptions import AirflowException
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.hooks.S3_hook import S3Hook
 from airflow.models import Variable
 
-def copy_to_snowflake(**kwargs):
+def meta_to_snowflake(**kwargs):
     try:
         s3_staging_folder = kwargs['S3_staging_folder_name']
         file_key = kwargs['file_key']
         bucket = kwargs['bucket']
         key = kwargs['key']
-        logging.info(f"S3 Staging Folder: {s3_staging_folder}, File Key: {file_key}, Bucket: {bucket}, Key: {key}")
-
-        # Generate dynamic load_id and file_id
-        load_id = str(uuid.uuid4())  # Unique identifier for each load
-        file_id = f"{file_key}_{datetime.now().strftime('%Y%m%d%H%M%S')}"  # File ID with timestamp
+        file_id = kwargs['file_id']
+        load_id = kwargs['load_id']
         
-        logging.info(f"Generated load_id: {load_id}, file_id: {file_id}")
+        logging.info(f"S3 Staging Folder: {s3_staging_folder}, File Key: {file_key}, Bucket: {bucket}, Key: {key}")
+        logging.info(f"Load ID: {load_id}, File ID: {file_id}")
 
         config = Variable.get("CONFIG", deserialize_json=True)
         source_config = config['SOURCES']['ecommerce']['files']
-        
+
         s3_hook = S3Hook(aws_conn_id='aws_default')
         s3_client = s3_hook.get_conn()
-        
+
         snowflake_stage = Variable.get("STAGE_AWS_S3_BUCKET_NAME")
         logging.info(f"Snowflake Stage: {snowflake_stage}")
-        
+
         conn = SnowflakeHook(snowflake_conn_id='snowflake').get_conn()
         cur = conn.cursor()
-        
+
         prefix = f'{s3_staging_folder}/{file_key}/{key}.csv'
         logging.info(f"Listing objects with prefix {prefix}")
-        
+
         response = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
         logging.info(f"S3 List Objects Response: {response}")
 
@@ -45,30 +41,60 @@ def copy_to_snowflake(**kwargs):
                 source_key = obj['Key']
                 filename = os.path.basename(source_key)
                 
+                if filename.endswith('.csv'):
+                    filename_base = filename
+                else:
+                    filename_base = filename
+                
                 for file_config in source_config.values():
-                    if file_config['filename_phrase'] in filename:
+                    if file_config['filename_phrase'] in filename_base:
                         file_type = file_config['type']
-                        if not filename.endswith(file_type):
-                            filename += file_type
+                        if not filename_base.endswith(file_type):
+                            filename_base += file_type
                         break
                 else:
                     logging.warning(f"Filename '{filename}' does not match any known patterns.")
                     continue
                 
                 meta_s3_filepath = f's3://{bucket}/{source_key}'
-                stage_path = f'@my_s3_stage/{file_key}/{filename}'
+                stage_path = f'@my_s3_stage/{file_key}/{filename_base}'
 
-                logging.info(f'Filename: {filename}, S3 path: {meta_s3_filepath}, Snowflake stage: {stage_path}')
+                logging.info(f'Filename: {filename_base}, S3 path: {meta_s3_filepath}, Snowflake stage: {stage_path}')
+
+                # Download the file to local for processing (temporary path)
+                local_file_path = f'/tmp/{filename}'
+                s3_client.download_file(bucket, source_key, local_file_path)
+
+                # Get file size and row count
+                file_size = os.path.getsize(local_file_path)
+                df = pd.read_csv(local_file_path)
+                row_count = df.shape[0]
+
+                logging.info(f'File Size: {file_size} bytes, Row Count: {row_count}')
+
+                # Clean up local file
+                os.remove(local_file_path)
 
                 cur.execute("BEGIN")
                 try:
-                    raw_script = f"{os.getenv('AIRFLOW_HOME')}/dags/ecommerce/tasks/sql/as_is/{file_key}.sql"
-                    with open(raw_script, 'r') as sql_file:
+                    sql_script_path = f"{os.getenv('AIRFLOW_HOME')}/dags/ecommerce/tasks/sql/meta/meta_{file_key}.sql"
+                    logging.info(f"Executing SQL script: {sql_script_path}")
+
+                    with open(sql_script_path, 'r') as sql_file:
                         query = sql_file.read()
-                        # Include load_id and file_id as parameters in SQL execution
                         cur.execute(query, {
                             'meta_s3_filepath': meta_s3_filepath,
                             'stage_path': stage_path,
+                            'current_year': datetime.now().year,
+                            'current_month': datetime.now().month,
+                            'current_day': datetime.now().day,
+                            'row_count': row_count,
+                            'file_header': 'header',  # Replace with actual file header if available
+                            'file_size': file_size,
+                            'last_modified': datetime.now(),  # Replace with actual last modified timestamp if available
+                            'file_type': 'csv',
+                            'checksum': 'checksum',  # Replace with actual checksum if available
+                            'execution_timestamp': datetime.now(),
                             'load_id': load_id,
                             'file_id': file_id
                         })
@@ -81,7 +107,7 @@ def copy_to_snowflake(**kwargs):
             logging.info(f"No objects found with prefix {prefix}")
 
     except Exception as e:
-        logging.error(f'Error processing S3 to Snowflake: {e}')
+        logging.error(f'Error processing S3 metadata to Snowflake: {e}')
         raise e
     finally:
         if conn:
@@ -90,9 +116,11 @@ def copy_to_snowflake(**kwargs):
             logging.info("Snowflake connection closed")
 
 if __name__ == "__main__":
-    copy_to_snowflake(
+    meta_to_snowflake(
         S3_staging_folder_name='test_s3_stage',
         file_key='test_file_key',
         bucket='test_bucket',
-        key='test_key'
+        key='test_key',
+        load_id='example_load_id',
+        file_id='test_file_id'
     )

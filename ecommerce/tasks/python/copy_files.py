@@ -1,7 +1,8 @@
 import os
+from datetime import datetime
 from airflow.hooks.S3_hook import S3Hook
 
-def copy_s3_files(source_bucket, dest_bucket, source_prefix, dest_prefix):
+def copy_s3_files(source_bucket, dest_bucket, source_prefix, dest_prefix, load_id):
     s3_hook = S3Hook(aws_conn_id='aws_default')  # Ensure you have an Airflow connection named 'aws_default'
     s3_client = s3_hook.get_conn()
 
@@ -12,7 +13,7 @@ def copy_s3_files(source_bucket, dest_bucket, source_prefix, dest_prefix):
             for obj in response['Contents']:
                 source_key = obj['Key']
                 filename = os.path.basename(source_key)
-                dest_key = os.path.join(dest_prefix, filename)
+                dest_key = os.path.join(dest_prefix, filename)  # Remove timestamp from destination key
                 copy_source = {'Bucket': source_bucket, 'Key': source_key}
 
                 s3_client.copy_object(CopySource=copy_source, Bucket=dest_bucket, Key=dest_key)
@@ -33,4 +34,4 @@ if __name__ == "__main__":
     source_prefix = 'ecommerce/source_prefix/'
     dest_prefix = 'ecommerce/destination_prefix/'
 
-    copy_s3_files(source_bucket_name, dest_bucket_name, source_prefix, dest_prefix)
+    copy_s3_files(source_bucket_name, dest_bucket_name, source_prefix, dest_prefix, load_id='example_load_id')

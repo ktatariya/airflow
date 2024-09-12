@@ -5,6 +5,8 @@ from airflow.operators.python import PythonOperator
 
 import ecommerce.tasks.python.copy_files as py0
 import ecommerce.tasks.python.s3_to_snowflake as py1
+import ecommerce.tasks.python.meta_s3_to_snowflake as py2
+import ecommerce.tasks.python.raw_to_staging as py3
 
 # Retrieve configuration
 config = Variable.get("CONFIG", deserialize_json=True)
@@ -44,6 +46,12 @@ end_task = DummyOperator(
     dag=dag
 )
 
+# Generate load_id for the current run
+def generate_load_id():
+    return f"LOAD_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+load_id = generate_load_id()
+
 for client, properties in sources.items():
     vendor_name = DummyOperator(task_id=f'{client}', retries=3, dag=dag)
     start_task >> vendor_name
@@ -60,25 +68,64 @@ for client, properties in sources.items():
                 'dest_bucket': dest_bucket,
                 'source_prefix': source_prefix,
                 'dest_prefix': dest_prefix,
+                'load_id': load_id,
             },
             dag=dag,
         )
         vendor_name >> task_a 
-        # Task B: Copy files from S3 to Snowflake
-        # Inside the for-loop in the DAG, replace 'object' with 'file_key'
+        if file_properties.get('snowflake_raw', 0):
+            task_b = PythonOperator(
+                task_id=f'{file_object}_s3_to_snowflake',
+                python_callable=py1.copy_to_snowflake,
+                op_kwargs={
+                    'vendor': client,
+                    'S3_staging_folder_name': client,
+                    'file_properties': file_properties,
+                    'file_key': filename_phrase,
+                    'bucket': dest_bucket,
+                    'key': file_object,
+                    'load_id': load_id,  # Pass load_id
+                },
+                dag=dag,
+            ) 
+            task_a >> task_b
+        else:
+            vendor_name >> end_task
 
-        task_b = PythonOperator(
-            task_id=f'{file_object}_s3_to_snowflake',
-            python_callable=py1.copy_to_snowflake,
-            op_kwargs={
-                'vendor': client,
-                'S3_staging_folder_name': client,
-                'file_properties': file_properties,
-                'file_key': filename_phrase,
-                'bucket': dest_bucket,
-                'key' :file_object,
-            },
-            dag=dag,
-        )
-
-        task_a >> task_b >> end_task
+        if file_properties.get('snowflake_meta', 0):
+            task_c = PythonOperator(
+                task_id=f'{file_object}_meta_s3_to_snowflake',
+                python_callable=py2.meta_to_snowflake,
+                op_kwargs={
+                    'vendor': client,
+                    'S3_staging_folder_name': client,
+                    'file_properties': file_properties,
+                    'file_key': filename_phrase,
+                    'bucket': dest_bucket,
+                    'key': file_object,
+                    'load_id': load_id,  # Pass load_id
+                    'file_id': file_object,  # Pass file_id
+                },
+                dag=dag,
+            )
+            task_b >> task_c 
+        else:
+            vendor_name >> end_task
+        if file_properties.get('snowflake_staging', 0):
+            task_d = PythonOperator(
+                task_id=f'{file_object}_raw_to_staging',
+                python_callable=py3.raw_to_staging_snowflake,
+                op_kwargs={
+                    'vendor': client,
+                    'S3_staging_folder_name': client,
+                    'file_properties': file_properties,
+                    'file_key': filename_phrase,
+                    'bucket': dest_bucket,
+                    'key': file_object,
+                    'load_id': load_id,  # Pass load_id
+                },
+                dag=dag,
+            )
+            task_c >> task_d >> end_task
+        else:
+            vendor_name >> end_task

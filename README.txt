@@ -25,3 +25,22 @@ The pipeline uses the Brazilian E-Commerce Public Dataset by Olist, available on
 Credits
 Dataset: Brazilian E-Commerce Public Dataset by Olist, provided through Kaggle.
 Tools and Technologies: AWS S3, Snowflake, Apache Airflow (Astronomer), Python, SQL.
+
+
+
+Usage
+Run DAG: Trigger the ecommerce DAG from the Airflow UI.
+Monitor Pipeline: Use Airflow’s monitoring tools to track task progress and troubleshoot issues.
+Extend Features: Add logging, monitoring, and email notifications for enhanced functionality.
+
+
+
+Future Improvements
+Enhanced Logging and Monitoring: Implement detailed logging and failure notifications.
+Optimized Folder Structure: Improve S3 folder organization for batch processing (e.g., weekly, daily).
+Data Cleaning and Standardization: Add more features for data standardization and encoding.
+Advanced Security: Further refine IAM policies and Snowflake access controls.
+
+
+Disclaimer
+This pipeline was developed rapidly over a two-day period with a primary focus on functionality. Code quality and standards, including comments, may not be up to the highest standards. However, security considerations have been prioritized, with appropriate IAM roles and Snowflake user access controls.

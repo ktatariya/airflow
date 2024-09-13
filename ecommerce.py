@@ -47,7 +47,6 @@ end_task = DummyOperator(
     dag=dag
 )
 
-
 # Task: Generate load_id (PythonOperator)
 def generate_load_id(**kwargs):
     load_id = f"LOAD_{datetime.now().strftime('%Y%m%d%H%M%S')}"
@@ -67,15 +66,43 @@ def get_load_id(**kwargs):
     load_id = ti.xcom_pull(task_ids='generate_load_id', key='load_id')
     return load_id
 
+# Reporting tasks
+reporting_dummy_start = DummyOperator(
+    task_id='reporting_dummy_start',
+    dag=dag
+)
 
+reporting_dummy_end = DummyOperator(
+    task_id='reporting_dummy_end',
+    dag=dag
+)
 
+def run_snowflake_reporting(**kwargs):
+    py4.snowflake_reporting_views(**kwargs)
+
+reporting_task = PythonOperator(
+    task_id='snowflake_reporting_task',
+    python_callable=run_snowflake_reporting,
+    op_kwargs={
+        'vendor': 'ecommerce',
+        'S3_staging_folder_name': S3_staging_folder_name,
+        'file_key': None,  # Not needed in this task
+        'bucket': dest_bucket,
+        'key': None,  # Not needed in this task
+        'load_id': '{{ task_instance.xcom_pull(task_ids="generate_load_id", key="load_id") }}',
+        'file_id': None,  # Not needed in this task
+    },
+    dag=dag,
+)
 
 # Set up task dependencies
 start_task >> generate_load_id_task
 
+
 for client, properties in sources.items():
-    vendor_name = DummyOperator(task_id=f'{client}', retries=3, dag=dag)
+    vendor_name = DummyOperator(task_id=f'{client}_start', retries=3, dag=dag)
     generate_load_id_task >> vendor_name
+    
     for file_object, file_properties in properties['files'].items():
         filename_phrase = file_properties['filename_phrase']
         source_prefix = f"ecommerce/{filename_phrase}/"
@@ -94,6 +121,7 @@ for client, properties in sources.items():
             dag=dag,
         )
         vendor_name >> task_a 
+        
         if file_properties.get('snowflake_raw', 0):
             task_b = PythonOperator(
                 task_id=f'{file_object}_s3_to_snowflake',
@@ -105,8 +133,8 @@ for client, properties in sources.items():
                     'file_key': filename_phrase,
                     'bucket': dest_bucket,
                     'key': file_object,
-                    'load_id': '{{ task_instance.xcom_pull(task_ids="generate_load_id", key="load_id") }}',  # Pass load_id
-                    'file_id': file_object,  # Pass file_id
+                    'load_id': '{{ task_instance.xcom_pull(task_ids="generate_load_id", key="load_id") }}',
+                    'file_id': file_object,
                 },
                 dag=dag,
             ) 
@@ -123,12 +151,12 @@ for client, properties in sources.items():
                     'file_key': filename_phrase,
                     'bucket': dest_bucket,
                     'key': file_object,
-                    'load_id': '{{ task_instance.xcom_pull(task_ids="generate_load_id", key="load_id") }}',  # Pass load_id
-                    'file_id': file_object,  # Pass file_id
+                    'load_id': '{{ task_instance.xcom_pull(task_ids="generate_load_id", key="load_id") }}',
+                    'file_id': file_object,
                 },
                 dag=dag,
             )
-            task_b >> task_c 
+            task_b >> task_c
 
         if file_properties.get('snowflake_staging', 0):
             task_d = PythonOperator(
@@ -142,42 +170,17 @@ for client, properties in sources.items():
                     'bucket': dest_bucket,
                     'key': file_object,
                     'load_id': '{{ task_instance.xcom_pull(task_ids="generate_load_id", key="load_id") }}',
-                    'file_id': file_object,  # Pass load_id
+                    'file_id': file_object,
                 },
                 dag=dag,
             )
-            task_c >> task_d 
-        
-        #Reporting task initialization
-        if file_properties.get('snowflake_reporting', 0):
-            # Task: End task (DummyOperator)
-            reporting_dummy_start = DummyOperator(
-                task_id=f'reporting_dummy_start_{file_object}',
-                dag=dag
-            )   
-            task_d >> reporting_dummy_start
-            
-            task_e = PythonOperator(
-                task_id=f'{file_object}_snowflake_reporting',
-                python_callable=py4.snowflake_reporting_views,
-                op_kwargs={
-                    'vendor': client,
-                    'S3_staging_folder_name': client,
-                    'file_properties': file_properties,
-                    'file_key': filename_phrase,
-                    'bucket': dest_bucket,
-                    'key': file_object,
-                    'load_id': '{{ task_instance.xcom_pull(task_ids="generate_load_id", key="load_id") }}',
-                    'file_id': file_object,  # Pass load_id
-                },
-                dag=dag,
-            )
-            reporting_dummy_start >> task_e 
+            task_c >> task_d
 
-            reporting_dummy_end = DummyOperator(
-                task_id=f'reporting_dummy_end_{file_object}',
-                dag=dag
-            )   
-            task_e >> reporting_dummy_end
-        
-    reporting_dummy_end >> end_task
+# All staging tasks converge to reporting start
+            task_d >> reporting_dummy_start
+
+# Reporting dummy start task should precede the reporting task
+reporting_dummy_start >> reporting_task >> reporting_dummy_end
+
+# End task should follow the reporting end dummy task
+reporting_dummy_end >> end_task

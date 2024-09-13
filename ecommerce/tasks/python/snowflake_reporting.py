@@ -11,15 +11,11 @@ def snowflake_reporting_views(**kwargs):
         bucket = kwargs['bucket']
         key = kwargs['key']
         load_id = kwargs['load_id']
-        file_id = kwargs['file_id']  # Use .get() to avoid KeyError
-        if file_id is None:
-            raise ValueError("file_id is required but not provided.")
         timestamp_utc = datetime.utcnow().strftime('%Y%m%d%H%M%S')
 
         logging.info(f"S3 Staging Folder: {s3_staging_folder}, File Key: {file_key}, Bucket: {bucket}, Key: {key}")
 
-        # Generate unique key
-        unique_key = f"{load_id}_{file_id}_{timestamp_utc}"
+
 
         # Snowflake connection
         conn = SnowflakeHook(snowflake_conn_id='snowflake').get_conn()
@@ -30,13 +26,8 @@ def snowflake_reporting_views(**kwargs):
         with open(raw_script, 'r') as sql_file:
             query = sql_file.read()
             
-            # Replace placeholders in SQL with actual values
-            query = query.format(
-                unique_key=unique_key
-            )
-
             # Execute the query with parameters
-            cur.execute(query, {'unique_key': unique_key})
+            cur.execute(query)
             cur.execute("COMMIT")
             
         logging.info("Data successfully merged into staging schema")
